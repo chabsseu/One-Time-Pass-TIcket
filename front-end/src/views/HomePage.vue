@@ -36,11 +36,14 @@ const loading = ref(false)
 const error = ref('')
 const tickets = ref<Ticket[]>([]);
 
+//control number
 async function loadControlNumber() {
     const response = await api.get("/tickets/next-control-number");
     controlNo.value = response.data.control_no;
 }
 
+
+// submit button
 async function handleSubmit(){
 
     loading.value = true
@@ -82,6 +85,7 @@ async function handleSubmit(){
     }
     
 }
+// reset form
 function resetForm() {
         form.date = "";
         form.plateNumber = "";
@@ -90,11 +94,13 @@ function resetForm() {
         form.amount = 30;
 }
 
+// ticket load to table
 async function loadTickets() {
     const response = await api.get("/tickets");
     tickets.value = response.data;
 }
 
+// date format
 function formatDate(date: string) {
     const d = new Date(date);
 
@@ -202,14 +208,14 @@ onMounted(() => {
     <button
       type="submit"
       :disabled="loading"
-      class="mt-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+      class="mt-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50"
     >
       {{ loading ? 'Saving...' : 'Submit' }}
     </button>
   </form>
 
 
-  <div class="p-6">
+  <div class="p-6 overflow-hidden rounded-xl border border-gray-300 shadow mt-3">
     <table class="min-w-full border border-gray-300 ">
 
         <thead class="bg-blue-500">
