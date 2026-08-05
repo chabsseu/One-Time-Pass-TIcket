@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import NavBar from '@/components/NavBar.vue'
 import { reactive, ref } from 'vue'
+import api from "@/services/api";
+import { onMounted } from 'vue';
 
 interface TicketForm {
   date: string
@@ -18,22 +20,51 @@ const form = reactive<TicketForm>({
   amount: 30, // default, but editable
 })
 
-const controlNo = ref('000045')
+const controlNo = ref()
 const loading = ref(false)
 const error = ref('')
 
-async function handleSubmit() {
-  error.value = ''
-  loading.value = true
-
-  try {
-    console.log('Submitting ticket:', { ...form, controlNo: controlNo.value })
-  } catch (err) {
-    error.value = 'Failed to issue ticket. Please try again.'
-  } finally {
-    loading.value = false
-  }
+async function loadControlNumber() {
+    const response = await api.get("/tickets/next-control-number");
+    controlNo.value = response.data.control_no;
 }
+
+async function handleSubmit(){
+
+    loading.value = true
+    error.value = ""
+
+    try{
+
+        const response = await api.post("/tickets", {
+            date: form.date,
+            plate_number: form.plateNumber,
+            driver: form.driver,
+            company: form.company,
+            amount: form.amount
+        })
+
+        await loadControlNumber();
+
+        console.log(response.data)
+
+        alert("Ticket Created!")
+
+    }catch(err){
+
+        console.error(err)
+        error.value="Unable to save ticket."
+
+    }finally{
+
+        loading.value=false
+
+    }
+
+}
+onMounted(() => {
+    loadControlNumber();
+});
 </script>
 
 <template>
