@@ -40,6 +40,7 @@ class TicketController extends Controller
 
             $latestPrice = PriceHistory::where('effective_date', '<=', now())
                 ->orderByDesc('effective_date')
+                ->orderByDesc('id')  // ← added tie-breaker
                 ->first();
             $validated['amount'] = $latestPrice->amount ?? 30.00;
 
