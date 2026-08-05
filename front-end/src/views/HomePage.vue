@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import NavBar from '@/components/NavBar.vue'
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import api from "@/services/api";
-import { onMounted } from 'vue';
 import Swal from 'sweetalert2';
 
 interface TicketForm {
@@ -10,7 +9,6 @@ interface TicketForm {
   plateNumber: string
   driver: string
   company: string
-  amount: number
 }
 
 interface Ticket {
@@ -23,47 +21,126 @@ interface Ticket {
     amount: number;
 }
 
+interface PriceForm {
+    amount: number | null;
+    effective_date: string;
+}
+
+interface PriceHistoryEntry {
+    id: number;
+    amount: number | string;
+    effective_date: string;
+}
+
+
 const form = reactive<TicketForm>({
   date: '',
   plateNumber: '',
   driver: '',
   company: '',
-  amount: 30, // default, but editable
 })
 
-const controlNo = ref()
+const controlNo = ref('')
 const loading = ref(false)
 const error = ref('')
 const tickets = ref<Ticket[]>([]);
+const currentPrice = ref(0);
+const showModal = ref(false);
+const priceHistory = ref<PriceHistoryEntry[]>([]);
+// price
+const priceForm = reactive<PriceForm>({
+    amount: null,
+    effective_date: ""
+});
 
-//control number
-async function loadControlNumber() {
-    const response = await api.get("/tickets/next-control-number");
-    controlNo.value = response.data.control_no;
+function openModal(){
+    showModal.value = true;
+    loadPriceHistory();
 }
 
+function closeModal(){
+    showModal.value = false;
+    priceForm.amount = null;
+    priceForm.effective_date = "";
+}
 
-// submit button
+async function loadPriceHistory(){
+    try{
+        const response = await api.get('/price-history');
+        priceHistory.value=response.data;
+    } catch (err){
+          await Swal.fire({
+            icon: "error",
+            title: "Error!",
+            text: "Invalid Input."
+        });
+    }
+}
+
+async function savePrice() {
+    try {
+        await api.post("/price-history", {
+            amount: priceForm.amount,
+            effective_date: priceForm.effective_date
+        });
+
+        await Swal.fire({
+            icon: "success",
+            title: "Success!",
+            text: "New price has been added."
+        });
+
+        await loadCurrentPrice();
+        await loadPriceHistory();
+        closeModal();
+
+    } catch (err) {
+        console.error(err);
+        Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Unable to save new price."
+        });
+    }
+}
+
+async function loadCurrentPrice(){
+    try {
+        const response = await api.get('/current-price');
+        currentPrice.value = Number(response.data.amount) || 0;
+    } catch (err) {
+        console.error('Failed to load current price:', err);
+        currentPrice.value = 0;
+    }
+}
+
+async function loadControlNumber() {
+    try {
+        const response = await api.get("/tickets/next-control-number");
+        controlNo.value = response.data.control_no;
+    } catch (err) {
+        console.error('Failed to load control number:', err);
+    }
+}
+
 async function handleSubmit(){
-
     loading.value = true
     error.value = ""
 
     try{
-
         const response = await api.post("/tickets", {
             date: form.date,
             plate_number: form.plateNumber,
             driver: form.driver,
             company: form.company,
-            amount: form.amount
         })
 
         await loadControlNumber();
+        await loadTickets();
 
         console.log(response.data)
 
-       await Swal.fire({
+        await Swal.fire({
             icon: "success",
             title: "Success!",
             text: "Ticket created successfully.",
@@ -71,39 +148,33 @@ async function handleSubmit(){
         });
 
         resetForm();
-        
 
     }catch(err){
-
         console.error(err)
-        error.value="Unable to save ticket."
-
+        error.value = "Unable to save ticket."
     }finally{
-
-        loading.value=false
-
+        loading.value = false
     }
-    
 }
-// reset form
+
 function resetForm() {
-        form.date = "";
-        form.plateNumber = "";
-        form.driver = "";
-        form.company = "";
-        form.amount = 30;
+    form.date = "";
+    form.plateNumber = "";
+    form.driver = "";
+    form.company = "";
 }
 
-// ticket load to table
 async function loadTickets() {
-    const response = await api.get("/tickets");
-    tickets.value = response.data;
+    try {
+        const response = await api.get("/tickets");
+        tickets.value = response.data;
+    } catch (err) {
+        console.error('Failed to load tickets:', err);
+    }
 }
 
-// date format
 function formatDate(date: string) {
     const d = new Date(date);
-
     return d.toLocaleDateString("en-US", {
         month: "2-digit",
         day: "2-digit",
@@ -111,141 +182,204 @@ function formatDate(date: string) {
     });
 }
 
-
 onMounted(() => {
     loadControlNumber();
     loadTickets();
+    loadCurrentPrice();
 });
 </script>
 
 <template>
     <NavBar />
-  <form
-    @submit.prevent="handleSubmit"
-    class="mx-auto flex max-w-md flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm mt-3"
-  >
-    <div class="text-center">
-      <h2 class="text-lg font-bold text-gray-900">QBITS RESOURCES CORPORATION</h2>
-      <p class="text-sm text-gray-500">Temporary Vehicle Entry Control</p>
-      <p class="text-sm font-semibold text-gray-700">ONE-TIME PASS TICKET</p>
-      <p class="text-xs text-gray-400">One-time entry only. No re-entry</p>
-    </div>
-
-    <div class="flex items-center justify-between border-t border-gray-200 pt-3">
-      <span class="text-sm font-medium text-gray-700">Control No.</span>
-      <span class="font-mono text-lg font-bold text-red-600">
-        {{ controlNo }}
-      </span>
-    </div>
-
-    <div class="flex flex-col gap-1">
-      <label for="amount" class="text-sm font-medium text-gray-700">Amount</label>
-      <div class="flex items-center gap-2">
-        <span class="text-lg font-bold text-gray-900">₱</span>
-        <input
-          id="amount"
-          v-model.number="form.amount"
-          type="number"
-          min="0"
-          step="0.01"
-          required
-          class="w-full rounded-md border border-gray-300 px-3 py-2 text-lg font-bold focus:border-blue-500 focus:outline-none"
-        />
-      </div>
-    </div>
-
-    <div class="flex flex-col gap-3 border-t border-gray-200 pt-3">
-      <div class="flex flex-col gap-1">
-        <label for="date" class="text-sm font-medium text-gray-700">Date</label>
-        <input
-          id="date"
-          v-model="form.date"
-          type="date"
-          required
-          class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        />
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <label for="plateNumber" class="text-sm font-medium text-gray-700">Plate Number</label>
-        <input
-          id="plateNumber"
-          v-model="form.plateNumber"
-          type="text"
-          required
-          placeholder="e.g. NAV 0571"
-          class="rounded-md border border-gray-300 px-3 py-2 text-sm uppercase focus:border-blue-500 focus:outline-none"
-        />
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <label for="driver" class="text-sm font-medium text-gray-700">Driver</label>
-        <input
-          id="driver"
-          v-model="form.driver"
-          type="text"
-          required
-          placeholder="Driver's name"
-          class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        />
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <label for="company" class="text-sm font-medium text-gray-700">Company</label>
-        <input
-          id="company"
-          v-model="form.company"
-          type="text"
-          required
-          placeholder="Company name"
-          class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        />
-      </div>
-    </div>
-
-    <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
-
-    <button
-      type="submit"
-      :disabled="loading"
-      class="mt-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50"
+    <form
+        @submit.prevent="handleSubmit"
+        class="mx-auto flex max-w-md flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm mt-3"
     >
-      {{ loading ? 'Saving...' : 'Submit' }}
-    </button>
-  </form>
+        <div class="text-center">
+            <h2 class="text-lg font-bold text-gray-900">QBITS RESOURCES CORPORATION</h2>
+            <p class="text-sm text-gray-500">Temporary Vehicle Entry Control</p>
+            <p class="text-sm font-semibold text-gray-700">ONE-TIME PASS TICKET</p>
+            <p class="text-xs text-gray-400">One-time entry only. No re-entry</p>
+        </div>
 
+        <div class="flex items-center justify-between border-t border-gray-200 pt-3">
+            <span class="text-sm font-medium text-gray-700">Control No.</span>
+            <span class="font-mono text-lg font-bold text-red-600">
+                {{ controlNo }}
+            </span>
+        </div>
 
-  <div class="p-6 overflow-hidden rounded-xl border border-gray-300 shadow mt-3">
-    <table class="min-w-full border border-gray-300 ">
+        <div class="flex flex-col gap-1">
+            <label class="text-sm font-medium text-gray-700">Amount</label>
+            <div class="flex items-center justify-between rounded-md border border-gray-300 bg-gray-100 px-3 py-2">
+                <span class="text-sm font-medium text-gray-600">Current Price</span>
+                <span class="text-xl font-bold text-green-600">
+                    ₱{{ (currentPrice ?? 0).toFixed(2) }}
+                </span>
+            </div>
+        </div>
 
-        <thead class="bg-blue-500">
-            <tr>
-                <th class="border border-black p-2 text-white">Control No.</th>
-                <th class="border border-black p-2 text-white">Date</th>
-                <th class="border border-black p-2 text-white">Plate Number</th>
-                <th class="border border-black p-2 text-white">Driver</th>
-                <th class="border border-black p-2 text-white">Company</th>
-                <th class="border border-black p-2 text-white">Amount</th>
-            </tr>
-        </thead>
+        <div class="flex flex-col gap-3 border-t border-gray-200 pt-3">
+            <div class="flex flex-col gap-1">
+                <label for="date" class="text-sm font-medium text-gray-700">Date</label>
+                <input
+                    id="date"
+                    v-model="form.date"
+                    type="date"
+                    required
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                />
+            </div>
 
-        <tbody>
+            <div class="flex flex-col gap-1">
+                <label for="plateNumber" class="text-sm font-medium text-gray-700">Plate Number</label>
+                <input
+                    id="plateNumber"
+                    v-model="form.plateNumber"
+                    type="text"
+                    required
+                    placeholder="ABC-123"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm uppercase focus:border-blue-500 focus:outline-none"
+                />
+            </div>
 
-            <tr
-                v-for="ticket in tickets"
-                :key="ticket.id"
+            <div class="flex flex-col gap-1">
+                <label for="driver" class="text-sm font-medium text-gray-700">Driver</label>
+                <input
+                    id="driver"
+                    v-model="form.driver"
+                    type="text"
+                    required
+                    placeholder="Driver's name"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                />
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label for="company" class="text-sm font-medium text-gray-700">Company</label>
+                <input
+                    id="company"
+                    v-model="form.company"
+                    type="text"
+                    required
+                    placeholder="Company name"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                />
+            </div>
+        </div>
+
+        <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+
+        <button
+            type="submit"
+            :disabled="loading"
+            class="mt-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+            {{ loading ? 'Saving...' : 'Submit' }}
+        </button>
+
+        <button
+            type="button"
+            @click="openModal"
+            class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white"
+        >
+            Add New Price
+        </button>
+    </form>
+
+    <!-- Price history modal -->
+    <!-- Price history modal -->
+<div
+    v-if="showModal"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+>
+    <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-lg max-h-[90vh] overflow-y-auto">
+        <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-xl font-bold">Add New Price</h2>
+            <button @click="closeModal" class="text-2xl">×</button>
+        </div>
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium">Effective Date</label>
+                <input
+                    v-model="priceForm.effective_date"
+                    type="date"
+                    class="mt-1 w-full rounded border p-2"
+                >
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium">Amount</label>
+                <input
+                    v-model.number="priceForm.amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="mt-1 w-full rounded border p-2"
+                >
+            </div>
+        </div>
+
+        <div class="mt-6 flex justify-end gap-2">
+            <button @click="closeModal" class="rounded bg-gray-300 px-4 py-2">
+                Cancel
+            </button>
+            <button
+                @click="savePrice"
+                :disabled="!priceForm.amount || !priceForm.effective_date"
+                class="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
             >
-                <td class="border p-2">{{ ticket.control_no }}</td>
-                <td class="border p-2">{{ formatDate(ticket.date) }}</td>
-                <td class="border p-2">{{ ticket.plate_number }}</td>
-                <td class="border p-2">{{ ticket.driver }}</td>
-                <td class="border p-2">{{ ticket.company }}</td>
-                <td class="border p-2">₱{{ ticket.amount }}</td>
-            </tr>
+                Save
+            </button>
+        </div>
 
-        </tbody>
+        <!-- Price history list -->
+        <div class="mt-6 border-t border-gray-200 pt-4">
+            <h3 class="mb-2 text-sm font-semibold text-gray-700">Price History</h3>
 
-    </table>
-  </div>
+            <div v-if="priceHistory.length === 0" class="text-sm text-gray-400">
+                No price history yet.
+            </div>
+
+            <ul v-else class="space-y-1">
+                <li
+                    v-for="entry in priceHistory"
+                    :key="entry.id"
+                    class="flex items-center justify-between rounded bg-gray-50 px-3 py-2 text-sm"
+                >
+                    <span class="text-gray-600">{{ formatDate(entry.effective_date) }}</span>
+                    <span class="font-semibold text-gray-900">
+                        ₱{{ Number(entry.amount).toFixed(2) }}
+                    </span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+    <div class="p-6 overflow-hidden rounded-xl border border-gray-300 shadow mt-3">
+        <table class="min-w-full border border-gray-300">
+            <thead class="bg-blue-500">
+                <tr>
+                    <th class="border border-black p-2 text-white">Control No.</th>
+                    <th class="border border-black p-2 text-white">Date</th>
+                    <th class="border border-black p-2 text-white">Plate Number</th>
+                    <th class="border border-black p-2 text-white">Driver</th>
+                    <th class="border border-black p-2 text-white">Company</th>
+                    <th class="border border-black p-2 text-white">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="ticket in tickets" :key="ticket.id">
+                    <td class="border p-2">{{ ticket.control_no }}</td>
+                    <td class="border p-2">{{ formatDate(ticket.date) }}</td>
+                    <td class="border p-2">{{ ticket.plate_number }}</td>
+                    <td class="border p-2">{{ ticket.driver }}</td>
+                    <td class="border p-2">{{ ticket.company }}</td>
+                    <td class="border p-2">₱{{ Number(ticket.amount).toFixed(2) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </template>
-

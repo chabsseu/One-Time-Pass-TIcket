@@ -3,49 +3,54 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ticket;
+use App\Models\PriceHistory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TicketController extends Controller
 {
     public function index()
     {
-        return response()->json(
-            Ticket::latest()->get()
-        );
-    }
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'date' => 'required',
-            'plate_number' => 'required',
-            'driver' => 'required',
-            'company' => 'required',
-            'amount' => 'required|numeric',
-        ]);
-
-        // Get the latest ticket
-        $lastTicket = Ticket::latest('id')->first();
-
-        // First ticket starts at 1
-        $nextNumber = $lastTicket ? $lastTicket->id + 1 : 1;
-
-        // Format as 0000001
-        $validated['control_no'] = str_pad($nextNumber, 7, '0', STR_PAD_LEFT);
-
-        $ticket = Ticket::create($validated);
-
-        return response()->json($ticket, 201);
+        return Ticket::latest()->get();
     }
 
     public function nextControlNumber()
     {
-        $lastTicket = Ticket::latest('id')->first();
-
-        $nextNumber = $lastTicket ? $lastTicket->id + 1 : 1;
+        $last = Ticket::orderByDesc('id')->first();
+        $nextNumber = $last ? ((int) $last->control_no) + 1 : 1;
 
         return response()->json([
-            'control_no' => str_pad($nextNumber, 7, '0', STR_PAD_LEFT)
+            'control_no' => str_pad($nextNumber, 6, '0', STR_PAD_LEFT),
         ]);
     }
 
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'date' => 'required|date',
+            'plate_number' => 'required|string|max:20',
+            'driver' => 'required|string|max:255',
+            'company' => 'required|string|max:255',
+        ]);
+
+        $ticket = DB::transaction(function () use ($validated) {
+            $last = Ticket::lockForUpdate()->orderByDesc('id')->first();
+            $nextNumber = $last ? ((int) $last->control_no) + 1 : 1;
+            $validated['control_no'] = str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+
+            $latestPrice = PriceHistory::where('effective_date', '<=', now())
+                ->orderByDesc('effective_date')
+                ->first();
+            $validated['amount'] = $latestPrice->amount ?? 30.00;
+
+            return Ticket::create($validated);
+        });
+
+        return response()->json($ticket, 201);
+    }
+
+    public function show(Ticket $ticket)
+    {
+        return $ticket;
+    }
 }
