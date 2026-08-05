@@ -3,6 +3,7 @@ import NavBar from '@/components/NavBar.vue'
 import { reactive, ref } from 'vue'
 import api from "@/services/api";
 import { onMounted } from 'vue';
+import Swal from 'sweetalert2';
 
 interface TicketForm {
   date: string
@@ -48,7 +49,14 @@ async function handleSubmit(){
 
         console.log(response.data)
 
-        alert("Ticket Created!")
+       await Swal.fire({
+            icon: "success",
+            title: "Success!",
+            text: "Ticket created successfully.",
+            confirmButtonText: "OK",
+        });
+
+        resetForm();
 
     }catch(err){
 
@@ -60,7 +68,13 @@ async function handleSubmit(){
         loading.value=false
 
     }
-
+    function resetForm() {
+        form.date = "";
+        form.plateNumber = "";
+        form.driver = "";
+        form.company = "";
+        form.amount = 30;
+}
 }
 onMounted(() => {
     loadControlNumber();
@@ -159,7 +173,7 @@ onMounted(() => {
       :disabled="loading"
       class="mt-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
     >
-      {{ loading ? 'Saving...' : 'Issue Ticket' }}
+      {{ loading ? 'Saving...' : 'Submit' }}
     </button>
   </form>
 </template>
