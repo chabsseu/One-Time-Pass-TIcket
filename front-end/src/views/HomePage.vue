@@ -1,10 +1,135 @@
-<script setup lang ="ts">
-import NavBar from '@/components/NavBar.vue';
+<script setup lang="ts">
+import NavBar from '@/components/NavBar.vue'
+import { reactive, ref } from 'vue'
 
+interface TicketForm {
+  date: string
+  plateNumber: string
+  driver: string
+  company: string
+  amount: number
+}
 
+const form = reactive<TicketForm>({
+  date: '',
+  plateNumber: '',
+  driver: '',
+  company: '',
+  amount: 30, // default, but editable
+})
+
+const controlNo = ref('000045')
+const loading = ref(false)
+const error = ref('')
+
+async function handleSubmit() {
+  error.value = ''
+  loading.value = true
+
+  try {
+    console.log('Submitting ticket:', { ...form, controlNo: controlNo.value })
+  } catch (err) {
+    error.value = 'Failed to issue ticket. Please try again.'
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <template>
-    <NavBar/>
-   <h1>HOMEPAGE</h1>
+    <NavBar />
+  <form
+    @submit.prevent="handleSubmit"
+    class="mx-auto flex max-w-md flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm mt-3"
+  >
+    <div class="text-center">
+      <h2 class="text-lg font-bold text-gray-900">QBITS RESOURCES CORPORATION</h2>
+      <p class="text-sm text-gray-500">Temporary Vehicle Entry Control</p>
+      <p class="text-sm font-semibold text-gray-700">ONE-TIME PASS TICKET</p>
+      <p class="text-xs text-gray-400">One-time entry only. No re-entry</p>
+    </div>
+
+    <div class="flex items-center justify-between border-t border-gray-200 pt-3">
+      <span class="text-sm font-medium text-gray-700">Control No.</span>
+      <span class="font-mono text-lg font-bold text-red-600">
+        {{ controlNo }}
+      </span>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label for="amount" class="text-sm font-medium text-gray-700">Amount</label>
+      <div class="flex items-center gap-2">
+        <span class="text-lg font-bold text-gray-900">₱</span>
+        <input
+          id="amount"
+          v-model.number="form.amount"
+          type="number"
+          min="0"
+          step="0.01"
+          required
+          class="w-full rounded-md border border-gray-300 px-3 py-2 text-lg font-bold focus:border-blue-500 focus:outline-none"
+        />
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-3 border-t border-gray-200 pt-3">
+      <div class="flex flex-col gap-1">
+        <label for="date" class="text-sm font-medium text-gray-700">Date</label>
+        <input
+          id="date"
+          v-model="form.date"
+          type="date"
+          required
+          class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label for="plateNumber" class="text-sm font-medium text-gray-700">Plate Number</label>
+        <input
+          id="plateNumber"
+          v-model="form.plateNumber"
+          type="text"
+          required
+          placeholder="e.g. NAV 0571"
+          class="rounded-md border border-gray-300 px-3 py-2 text-sm uppercase focus:border-blue-500 focus:outline-none"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label for="driver" class="text-sm font-medium text-gray-700">Driver</label>
+        <input
+          id="driver"
+          v-model="form.driver"
+          type="text"
+          required
+          placeholder="Driver's name"
+          class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label for="company" class="text-sm font-medium text-gray-700">Company</label>
+        <input
+          id="company"
+          v-model="form.company"
+          type="text"
+          required
+          placeholder="Company name"
+          class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+        />
+      </div>
+    </div>
+
+    <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+
+    <button
+      type="submit"
+      :disabled="loading"
+      class="mt-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+    >
+      {{ loading ? 'Saving...' : 'Issue Ticket' }}
+    </button>
+  </form>
 </template>
+
