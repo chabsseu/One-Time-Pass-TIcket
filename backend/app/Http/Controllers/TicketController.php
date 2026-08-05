@@ -7,6 +7,12 @@ use Illuminate\Http\Request;
 
 class TicketController extends Controller
 {
+    public function index()
+    {
+        return response()->json(
+            Ticket::latest()->get()
+        );
+    }
     public function store(Request $request)
     {
         $validated = $request->validate([

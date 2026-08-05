@@ -10,3 +10,4 @@ Route::get('/user', function (Request $request) {
 
 Route::post('/tickets',[TicketController::class,'store']);
 Route::get('/tickets/next-control-number', [TicketController::class, 'nextControlNumber']);
+Route::get('/tickets',[TicketController::class, 'index']);
