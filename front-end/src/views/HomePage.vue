@@ -49,6 +49,7 @@ const showModalHistory = ref(false);
 const priceHistory = ref<PriceHistoryEntry[]>([]);
 const selectedPriceId = ref<number | null>(null);
 const isEditing = ref(false);
+const ticketToPrint = ref<Ticket | null>(null);
 
 const priceForm = reactive<PriceForm>({
     amount: null,
@@ -132,6 +133,15 @@ const updatePrice = async (id: number) => {
         });
     }
 };
+
+// print function
+function printTicket(ticket: Ticket){
+    ticketToPrint.value = ticket;
+
+    setTimeout(() =>{
+        window.print();
+    }, 100);
+}
 
 // --- Add flow ---
 async function savePrice() {
@@ -470,7 +480,7 @@ onMounted(() => {
             <div class="flex justify-end border-t bg-gray-50 px-6 py-4">
                 <button
                     @click="closeModalHistory"
-                    class="rounded-lg bg-gray-600 px-5 py-2 font-medium text-white transition hover:bg-gray-700"
+                    class="rounded-lg bg-blue-600 px-5 py-2 font-medium text-white transition hover:bg-blue-500"
                 >
                     Close
                 </button>
@@ -496,6 +506,7 @@ onMounted(() => {
                     <th class="border border-black p-2 text-white">Driver</th>
                     <th class="border border-black p-2 text-white">Company</th>
                     <th class="border border-black p-2 text-white">Amount</th>
+                    <th class="border border-black p-2 text-white">Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -506,8 +517,145 @@ onMounted(() => {
                     <td class="border p-2">{{ ticket.driver }}</td>
                     <td class="border p-2">{{ ticket.company }}</td>
                     <td class="border p-2">₱{{ Number(ticket.amount).toFixed(2) }}</td>
+                    <td class="border p-2 text-center"> 
+                        <button type="button" @click="printTicket(ticket)" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white text-xl">🖨️</button>
+                        <button type="button" @click="" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white text-xl ml-3">🗑️</button>
+                    </td>
                 </tr>
             </tbody>
         </table>
     </div>
+
+
+    <!-- Printable ticket (hidden on screen, shown only when printing) -->
+     <Teleport to="body">
+        <div id="print-ticket" v-if="ticketToPrint">
+            <div class="ticket-header">
+                <h1>QBITS RESOURCES CORPORATION</h1>
+                <p>Temporary Vehicle Entry Control</p>
+                <p class="bold">ONE-TIME PASS TICKET</p>
+                <p class="small">One-time entry only. No re-entry</p>
+            </div>
+
+            <div class="control-row">
+                <span>CONTROL NO.:</span>
+                <span class="control-no">{{ ticketToPrint.control_no }}</span>
+            </div>
+
+            <div class="amount">
+                ₱{{ Number(ticketToPrint.amount).toFixed(2) }}
+            </div>
+
+            <div class="field-row">
+                <span>DATE</span>
+                <span>:</span>
+                <span>{{ formatDate(ticketToPrint.date) }}</span>
+            </div>
+
+            <div class="field-row">
+                <span>PLATE NUMBER</span>
+                <span>:</span>
+                <span>{{ ticketToPrint.plate_number }}</span>
+            </div>
+
+            <div class="field-row">
+                <span>DRIVER</span>
+                <span>:</span>
+                <span>{{ ticketToPrint.driver }}</span>
+            </div>
+
+            <div class="field-row">
+                <span>COMPANY</span>
+                <span>:</span>
+                <span>{{ ticketToPrint.company }}</span>
+            </div>
+        </div>
+    </Teleport>
 </template>
+
+<style>
+#print-ticket {
+    display: none;
+}
+
+@media print {
+    body > *:not(#print-ticket) {
+        display: none !important;
+    }
+
+    #print-ticket {
+        display: block !important;
+        position: static;   
+        width: 4in;
+        height: 4in;
+        padding: 0.25in;
+        font-family: Arial, sans-serif;
+        color: #000;
+        box-sizing: border-box;
+    }
+
+    @page {
+        size: 4in 4in;
+        margin: 0;
+    }
+
+
+    .ticket-header {
+        text-align: center;
+        border-bottom: 1px dashed #000;
+        padding-bottom: 8px;
+        margin-bottom: 8px;
+    }
+
+    .ticket-header h1 {
+        font-size: 16px;
+        font-weight: bold;
+        margin: 0 0 4px 0;
+    }
+
+    .ticket-header p {
+        font-size: 11px;
+        margin: 2px 0;
+    }
+
+    .ticket-header .bold {
+        font-weight: bold;
+        font-size: 13px;
+    }
+
+    .ticket-header .small {
+        font-size: 9px;
+        color: #444;
+    }
+
+    .control-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        font-size: 13px;
+        font-weight: bold;
+        margin: 8px 0;
+    }
+
+    .control-no {
+        color: #c00;
+        font-size: 18px;
+        letter-spacing: 2px;
+    }
+
+    .amount {
+        font-size: 32px;
+        font-weight: bold;
+        text-align: center;
+        margin: 8px 0 16px 0;
+    }
+
+    .field-row {
+        display: grid;
+        grid-template-columns: 120px 20px 1fr;
+        font-size: 12px;
+        border-bottom: 1px solid #999;
+        padding: 8px 0;
+    }
+}
+</style>
