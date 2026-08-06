@@ -20,7 +20,7 @@ class TicketController extends Controller
         $nextNumber = $last ? ((int) $last->control_no) + 1 : 1;
 
         return response()->json([
-            'control_no' => str_pad($nextNumber, 6, '0', STR_PAD_LEFT),
+            'control_no' => str_pad($nextNumber, 7, '0', STR_PAD_LEFT),
         ]);
     }
 
@@ -36,7 +36,7 @@ class TicketController extends Controller
         $ticket = DB::transaction(function () use ($validated) {
             $last = Ticket::lockForUpdate()->orderByDesc('id')->first();
             $nextNumber = $last ? ((int) $last->control_no) + 1 : 1;
-            $validated['control_no'] = str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+            $validated['control_no'] = str_pad($nextNumber, 7, '0', STR_PAD_LEFT);
 
             $latestPrice = PriceHistory::where('effective_date', '<=', now())
                 ->orderByDesc('effective_date')

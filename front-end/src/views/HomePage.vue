@@ -22,7 +22,7 @@ interface Ticket {
 }
 
 interface PriceForm {
-    amount: number | null;
+    amount: number | null;  
     effective_date: string;
 }
 
@@ -46,7 +46,9 @@ const error = ref('')
 const tickets = ref<Ticket[]>([]);
 const currentPrice = ref(0);
 const showModal = ref(false);
+const showModalHistory = ref(false);
 const priceHistory = ref<PriceHistoryEntry[]>([]);
+
 // price
 const priceForm = reactive<PriceForm>({
     amount: null,
@@ -62,6 +64,15 @@ function closeModal(){
     showModal.value = false;
     priceForm.amount = null;
     priceForm.effective_date = "";
+}
+
+function openModalHistory(){
+    showModalHistory.value = true;
+    loadPriceHistory()
+}
+
+function closeModalHistory(){
+    showModalHistory.value = false;
 }
 
 async function loadPriceHistory(){
@@ -114,6 +125,7 @@ async function loadCurrentPrice(){
     }
 }
 
+// control number display 
 async function loadControlNumber() {
     try {
         const response = await api.get("/tickets/next-control-number");
@@ -123,6 +135,7 @@ async function loadControlNumber() {
     }
 }
 
+// submit
 async function handleSubmit(){
     loading.value = true
     error.value = ""
@@ -157,6 +170,7 @@ async function handleSubmit(){
     }
 }
 
+// form reset
 function resetForm() {
     form.date = "";
     form.plateNumber = "";
@@ -164,6 +178,7 @@ function resetForm() {
     form.company = "";
 }
 
+// ticket
 async function loadTickets() {
     try {
         const response = await api.get("/tickets");
@@ -173,6 +188,7 @@ async function loadTickets() {
     }
 }
 
+// format date
 function formatDate(date: string) {
     const d = new Date(date);
     return d.toLocaleDateString("en-US", {
@@ -278,16 +294,9 @@ onMounted(() => {
             {{ loading ? 'Saving...' : 'Submit' }}
         </button>
 
-        <button
-            type="button"
-            @click="openModal"
-            class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white"
-        >
-            Add New Price
-        </button>
+        
     </form>
 
-    <!-- Price history modal -->
     <!-- Price history modal -->
 <div
     v-if="showModal"
@@ -333,32 +342,83 @@ onMounted(() => {
                 Save
             </button>
         </div>
+    </div>
+</div>
 
-        <!-- Price history list -->
-        <div class="mt-6 border-t border-gray-200 pt-4">
-            <h3 class="mb-2 text-sm font-semibold text-gray-700">Price History</h3>
+<!-- Price history modal -->
+ <div
+    v-if="showModalHistory" @click.self="closeModalHistory" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div class="w-full max-w-lg rounded-xl bg-white shadow-2xl">
 
-            <div v-if="priceHistory.length === 0" class="text-sm text-gray-400">
-                No price history yet.
+        <!-- Header -->
+        <div class="flex items-center justify-between border-b px-6 py-4">
+            <h2 class="text-xl font-bold text-gray-800">
+                Price History
+            </h2>
+
+            <button
+                @click="closeModalHistory"
+                class="text-2xl font-bold text-gray-400 hover:text-red-500"
+            >
+                &times;
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="max-h-96 overflow-y-auto p-6">
+
+            <div
+                v-if="priceHistory.length === 0"
+                class="rounded-lg border border-dashed border-gray-300 py-8 text-center text-gray-500">
+                No price history available.
             </div>
 
-            <ul v-else class="space-y-1">
-                <li
-                    v-for="entry in priceHistory"
-                    :key="entry.id"
-                    class="flex items-center justify-between rounded bg-gray-50 px-3 py-2 text-sm"
-                >
-                    <span class="text-gray-600">{{ formatDate(entry.effective_date) }}</span>
-                    <span class="font-semibold text-gray-900">
-                        ₱{{ Number(entry.amount).toFixed(2) }}
-                    </span>
-                </li>
-            </ul>
+            <div v-else class="space-y-3">
+                <div v-for="entry in priceHistory" :key="entry.id" class="flex items-center justify-between rounded-lg border bg-gray-50 p-4 transition hover:bg-blue-50">
+                    <div>
+                        <p class="text-xs uppercase tracking-wide text-gray-500">
+                            Effective Date
+                        </p>
+
+                        <p class="font-medium text-gray-800">
+                            {{ formatDate(entry.effective_date) }}
+                        </p>
+                    </div>
+
+                    <div class="text-right">
+                        <p class="text-xs uppercase tracking-wide text-gray-500">
+                            Amount
+                        </p>
+
+                        <p class="text-xl font-bold text-green-600">
+                            ₱{{ Number(entry.amount).toFixed(2) }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="flex justify-end border-t bg-gray-50 px-6 py-4">
+            <button
+                @click="closeModalHistory"
+                class="rounded-lg bg-gray-600 px-5 py-2 font-medium text-white transition hover:bg-gray-700">
+                Close
+            </button>
         </div>
     </div>
 </div>
 
     <div class="p-6 overflow-hidden rounded-xl border border-gray-300 shadow mt-3">
+        <button type="button" @click="openModal"class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white mb-3">
+            Add New Price
+        </button>
+            
+        <button type="button" @click="openModalHistory" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white mb-3 ml-3">
+                View Price History
+        </button>
+        
         <table class="min-w-full border border-gray-300">
             <thead class="bg-blue-500">
                 <tr>
