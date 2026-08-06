@@ -3,7 +3,7 @@
     <div class="justify-self-start"></div>
     <!-- Center: brand -->
     <div class="flex items-center justify-self-center gap-2">
-        <img class = "size-9.5 overflow-hidden rounded-full" src = "../assets/logo.png" href = "/" />
+        <img class = "size-9.5 overflow-hidden rounded-full" src = "../assets/ticket.jpg" href = "/" />
         <a href="/" class="text-xl font-bold text-white no-underline">QBITS One Time Pass Ticket</a>
     </div>
     <div class="justify-self-end"></div>
