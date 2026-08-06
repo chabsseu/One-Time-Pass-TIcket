@@ -16,3 +16,5 @@ Route::get('/tickets/{ticket}', [TicketController::class, 'show']);
 Route::get('/current-price', [PriceController::class, 'currentPrice']);
 Route::post('/price-history', [PriceController::class, 'store']);
 Route::get('/price-history',[PriceController::class,'index']);
+Route::get('/price-history/{id}', [PriceController::class, 'show']); 
+Route::put('/price-history/{id}',[PriceController::class,'update']);

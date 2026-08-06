@@ -22,7 +22,7 @@ interface Ticket {
 }
 
 interface PriceForm {
-    amount: number | null;  
+    amount: number | null;
     effective_date: string;
 }
 
@@ -31,7 +31,6 @@ interface PriceHistoryEntry {
     amount: number | string;
     effective_date: string;
 }
-
 
 const form = reactive<TicketForm>({
   date: '',
@@ -48,46 +47,93 @@ const currentPrice = ref(0);
 const showModal = ref(false);
 const showModalHistory = ref(false);
 const priceHistory = ref<PriceHistoryEntry[]>([]);
+const selectedPriceId = ref<number | null>(null);
+const isEditing = ref(false);
 
-// price
 const priceForm = reactive<PriceForm>({
     amount: null,
     effective_date: ""
 });
 
+// --- Add-price modal ---
 function openModal(){
+    isEditing.value = false;
+    selectedPriceId.value = null;
+    priceForm.amount = null;
+    priceForm.effective_date = "";
     showModal.value = true;
     loadPriceHistory();
 }
 
 function closeModal(){
     showModal.value = false;
+    isEditing.value = false;
+    selectedPriceId.value = null;
     priceForm.amount = null;
     priceForm.effective_date = "";
 }
 
+// --- History modal ---
 function openModalHistory(){
     showModalHistory.value = true;
-    loadPriceHistory()
+    loadPriceHistory();
 }
 
 function closeModalHistory(){
     showModalHistory.value = false;
 }
 
-async function loadPriceHistory(){
-    try{
-        const response = await api.get('/price-history');
-        priceHistory.value=response.data;
-    } catch (err){
-          await Swal.fire({
-            icon: "error",
-            title: "Error!",
-            text: "Invalid Input."
-        });
-    }
+// --- Edit flow ---
+const editPrice = async (id: number) => {
+    selectedPriceId.value = id;
+    isEditing.value = true;
+    await fetchPrice(id);
+    showModal.value = true;
+    closeModalHistory();
 }
 
+const fetchPrice = async (id: number) => {
+    try {
+        const response = await api.get(`/price-history/${id}`);
+        priceForm.amount = Number(response.data.amount);
+        priceForm.effective_date = response.data.effective_date.split('T')[0]; // ← trim to YYYY-MM-DD
+    } catch (err) {
+        await Swal.fire({
+            icon: "error",
+            title: "Error!",
+            text: "Unable to load price."
+        });
+    }
+};
+
+const updatePrice = async (id: number) => {
+    try {
+        await api.put(`/price-history/${id}`, {
+            amount: priceForm.amount,
+            effective_date: priceForm.effective_date
+        });
+
+        await Swal.fire({
+            icon: "success",
+            title: "Success!",
+            text: "Price updated successfully."
+        });
+
+        await loadPriceHistory();
+        await loadCurrentPrice();
+        openModalHistory();
+        closeModal();
+
+    } catch (err) {
+        await Swal.fire({
+            icon: "error",
+            title: "Error!",
+            text: "Update failed."
+        });
+    }
+};
+
+// --- Add flow ---
 async function savePrice() {
     try {
         await api.post("/price-history", {
@@ -115,6 +161,28 @@ async function savePrice() {
     }
 }
 
+// --- Shared save handler for the modal button ---
+async function handleSavePrice() {
+    if (isEditing.value && selectedPriceId.value) {
+        await updatePrice(selectedPriceId.value);
+    } else {
+        await savePrice();
+    }
+}
+
+async function loadPriceHistory(){
+    try{
+        const response = await api.get('/price-history');
+        priceHistory.value = response.data;
+    } catch (err){
+        await Swal.fire({
+            icon: "error",
+            title: "Error!",
+            text: "Unable to load price history."
+        });
+    }
+}
+
 async function loadCurrentPrice(){
     try {
         const response = await api.get('/current-price');
@@ -125,7 +193,6 @@ async function loadCurrentPrice(){
     }
 }
 
-// control number display 
 async function loadControlNumber() {
     try {
         const response = await api.get("/tickets/next-control-number");
@@ -135,7 +202,6 @@ async function loadControlNumber() {
     }
 }
 
-// submit
 async function handleSubmit(){
     loading.value = true
     error.value = ""
@@ -170,7 +236,6 @@ async function handleSubmit(){
     }
 }
 
-// form reset
 function resetForm() {
     form.date = "";
     form.plateNumber = "";
@@ -178,7 +243,6 @@ function resetForm() {
     form.company = "";
 }
 
-// ticket
 async function loadTickets() {
     try {
         const response = await api.get("/tickets");
@@ -188,7 +252,6 @@ async function loadTickets() {
     }
 }
 
-// format date
 function formatDate(date: string) {
     const d = new Date(date);
     return d.toLocaleDateString("en-US", {
@@ -293,132 +356,137 @@ onMounted(() => {
         >
             {{ loading ? 'Saving...' : 'Submit' }}
         </button>
-
-        
     </form>
 
-    <!-- Price history modal -->
-<div
-    v-if="showModal"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
->
-    <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-lg max-h-[90vh] overflow-y-auto">
-        <div class="mb-4 flex items-center justify-between">
-            <h2 class="text-xl font-bold">Add New Price</h2>
-            <button @click="closeModal" class="text-2xl">×</button>
-        </div>
-
-        <div class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium">Effective Date</label>
-                <input
-                    v-model="priceForm.effective_date"
-                    type="date"
-                    class="mt-1 w-full rounded border p-2"
-                >
+    <!-- Add / Edit price modal -->
+    <div
+        v-if="showModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+    >
+        <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-lg max-h-[90vh] overflow-y-auto">
+            <div class="mb-4 flex items-center justify-between">
+                <h2 class="text-xl font-bold">
+                    {{ isEditing ? 'Edit Price' : 'Add New Price' }}
+                </h2>
+                <button @click="closeModal" class="text-2xl">×</button>
             </div>
 
-            <div>
-                <label class="block text-sm font-medium">Amount</label>
-                <input
-                    v-model.number="priceForm.amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    class="mt-1 w-full rounded border p-2"
-                >
-            </div>
-        </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium">Effective Date</label>
+                    <input
+                        v-model="priceForm.effective_date"
+                        type="date"
+                        class="mt-1 w-full rounded border p-2"
+                    >
+                </div>
 
-        <div class="mt-6 flex justify-end gap-2">
-            <button @click="closeModal" class="rounded bg-gray-300 px-4 py-2">
-                Cancel
-            </button>
-            <button
-                @click="savePrice"
-                :disabled="!priceForm.amount || !priceForm.effective_date"
-                class="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
-            >
-                Save
-            </button>
+                <div>
+                    <label class="block text-sm font-medium">Amount</label>
+                    <input
+                        v-model.number="priceForm.amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        class="mt-1 w-full rounded border p-2"
+                    >
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-2">
+                <button @click="closeModal" class="rounded bg-gray-300 px-4 py-2">
+                    Cancel
+                </button>
+                <button
+                    @click="handleSavePrice"
+                    :disabled="!priceForm.amount || !priceForm.effective_date"
+                    class="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
+                >
+                    {{ isEditing ? 'Update' : 'Save' }}
+                </button>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Price history modal -->
- <div
-    v-if="showModalHistory" @click.self="closeModalHistory" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-    <div class="w-full max-w-lg rounded-xl bg-white shadow-2xl">
-
-        <!-- Header -->
-        <div class="flex items-center justify-between border-b px-6 py-4">
-            <h2 class="text-xl font-bold text-gray-800">
-                Price History
-            </h2>
-
-            <button
-                @click="closeModalHistory"
-                class="text-2xl font-bold text-gray-400 hover:text-red-500"
-            >
-                &times;
-            </button>
-        </div>
-
-        <!-- Body -->
-        <div class="max-h-96 overflow-y-auto p-6">
-
-            <div
-                v-if="priceHistory.length === 0"
-                class="rounded-lg border border-dashed border-gray-300 py-8 text-center text-gray-500">
-                No price history available.
+    <!-- Price history modal -->
+    <div
+        v-if="showModalHistory"
+        @click.self="closeModalHistory"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+    >
+        <div class="w-full max-w-lg rounded-xl bg-white shadow-2xl">
+            <div class="flex items-center justify-between border-b px-6 py-4">
+                <h2 class="text-xl font-bold text-gray-800">Price History</h2>
+                <button
+                    @click="closeModalHistory"
+                    class="text-2xl font-bold text-gray-400 hover:text-red-500"
+                >
+                    &times;
+                </button>
             </div>
 
-            <div v-else class="space-y-3">
-                <div v-for="entry in priceHistory" :key="entry.id" class="flex items-center justify-between rounded-lg border bg-gray-50 p-4 transition hover:bg-blue-50">
-                    <div>
-                        <p class="text-xs uppercase tracking-wide text-gray-500">
-                            Effective Date
-                        </p>
+            <div class="max-h-96 overflow-y-auto p-6">
+                <div
+                    v-if="priceHistory.length === 0"
+                    class="rounded-lg border border-dashed border-gray-300 py-8 text-center text-gray-500"
+                >
+                    No price history available.
+                </div>
 
-                        <p class="font-medium text-gray-800">
-                            {{ formatDate(entry.effective_date) }}
-                        </p>
-                    </div>
+                <div v-else class="space-y-3">
+                    <div
+                        v-for="entry in priceHistory"
+                        :key="entry.id"
+                        class="flex items-center justify-between rounded-lg border bg-gray-50 p-4 transition hover:bg-blue-50"
+                    >
+                        <div>
+                            <p class="text-xs uppercase tracking-wide text-gray-500">
+                                Effective Date
+                            </p>
+                            <p class="font-medium text-gray-800">
+                                {{ formatDate(entry.effective_date) }}
+                            </p>
+                        </div>
 
-                    <div class="text-right">
-                        <p class="text-xs uppercase tracking-wide text-gray-500">
-                            Amount
-                        </p>
-
-                        <p class="text-xl font-bold text-green-600">
-                            ₱{{ Number(entry.amount).toFixed(2) }}
-                        </p>
+                        <div class="text-right">
+                            <p class="text-xs uppercase tracking-wide text-gray-500">
+                                Amount
+                            </p>
+                            <p class="text-xl font-bold text-green-600">
+                                ₱{{ Number(entry.amount).toFixed(2) }}
+                            </p>
+                            <button
+                                type="button"
+                                @click="editPrice(entry.id)"
+                                class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white mt-3"
+                            >
+                                Edit
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-        </div>
-
-        <!-- Footer -->
-        <div class="flex justify-end border-t bg-gray-50 px-6 py-4">
-            <button
-                @click="closeModalHistory"
-                class="rounded-lg bg-gray-600 px-5 py-2 font-medium text-white transition hover:bg-gray-700">
-                Close
-            </button>
+            <div class="flex justify-end border-t bg-gray-50 px-6 py-4">
+                <button
+                    @click="closeModalHistory"
+                    class="rounded-lg bg-gray-600 px-5 py-2 font-medium text-white transition hover:bg-gray-700"
+                >
+                    Close
+                </button>
+            </div>
         </div>
     </div>
-</div>
 
     <div class="p-6 overflow-hidden rounded-xl border border-gray-300 shadow mt-3">
-        <button type="button" @click="openModal"class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white mb-3">
+        <button type="button" @click="openModal" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white mb-3">
             Add New Price
         </button>
-            
+
         <button type="button" @click="openModalHistory" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white mb-3 ml-3">
-                View Price History
+            View Price History
         </button>
-        
+
         <table class="min-w-full border border-gray-300">
             <thead class="bg-blue-500">
                 <tr>

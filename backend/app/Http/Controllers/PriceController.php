@@ -7,6 +7,12 @@ use App\Models\PriceHistory;
 
 class PriceController extends Controller
 {
+
+    public function show($id)
+    {
+        return PriceHistory::findOrFail($id);
+    }
+    
     public function index(){
         return PriceHistory::orderByDesc('effective_date')
             ->orderByDesc('id')
@@ -31,5 +37,19 @@ class PriceController extends Controller
         $price = PriceHistory::create($validated);
 
         return response()->json($price, 201);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $price = PriceHistory::findOrFail($id);
+
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:0',
+            'effective_date' => 'required|date'
+        ]);
+
+        $price->update($validated);
+
+        return response()->json($price);
     }
 }
