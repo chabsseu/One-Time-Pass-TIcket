@@ -23,7 +23,7 @@ class TicketController extends Controller
         }
 
         return response()->json(
-            $tickets->latest()->get()
+            $tickets->latest()->paginate(10)
         );
     }
 

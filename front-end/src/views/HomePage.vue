@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import NavBar from '@/components/NavBar.vue'
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, watch } from 'vue'
 import api from "@/services/api";
 import Swal from 'sweetalert2';
 
@@ -51,6 +51,8 @@ const selectedPriceId = ref<number | null>(null);
 const isEditing = ref(false);
 const ticketToPrint = ref<Ticket | null>(null);
 const search = ref("")
+const currentPage = ref(1);
+const lastPage = ref(1);
 
 const priceForm = reactive<PriceForm>({
     amount: null,
@@ -256,15 +258,19 @@ function resetForm() {
     form.company = "";
 }
 
-async function loadTickets() {
+async function loadTickets(page: number = 1) {
     try {
         const response = await api.get("/tickets", {
             params: {
-                search: search.value
+                search: search.value,
+                page: page
             }
         });
 
-        tickets.value = response.data;
+        tickets.value = response.data.data;
+        currentPage.value = response.data.current_page;
+        lastPage.value = response.data.last_page;
+
     } catch (err) {
         console.error("Failed to load tickets:", err);
     }
@@ -278,6 +284,9 @@ function formatDate(date: string) {
         year: "numeric",
     });
 }
+watch(search, () => {
+    loadTickets(1);
+});
 
 onMounted(() => {
     loadControlNumber();
@@ -495,6 +504,7 @@ onMounted(() => {
         </div>
     </div>
 
+    <!-- Table -->
     <div class="p-6 overflow-hidden rounded-xl border border-gray-300 shadow mt-3">
         <button type="button" @click="openModal" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white mb-3">
             Add New Price
@@ -503,7 +513,7 @@ onMounted(() => {
         <button type="button" @click="openModalHistory" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white mb-3 ml-3">
             View Price History
         </button>
-        <input v-model="search" @input="loadTickets" type="text" placeholder="Search control no., driver etc..." class="w-80 rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none ml-3"/>
+        <input v-model="search" type="text" placeholder="Search control no., driver etc..." class="w-80 rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none ml-3"/>
         <table class="min-w-full border border-gray-300">
             <thead class="bg-blue-500">
                 <tr>
@@ -531,6 +541,15 @@ onMounted(() => {
                 </tr>
             </tbody>
         </table>
+        
+        <!-- Pagination -->
+             <div class="flex items-center justify-center gap-4 mt-3">
+                <button class="rounded bg-gray-300 px-4 py-2 disabled:opacity-50" :disabled="currentPage === 1" @click="loadTickets(currentPage - 1)">Previous</button>
+
+                <span>Page {{ currentPage }} of {{ lastPage }}</span>
+
+                <button class="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50" :disabled="currentPage === lastPage" @click="loadTickets(currentPage + 1)">Next</button>
+            </div>
     </div>
 
 
