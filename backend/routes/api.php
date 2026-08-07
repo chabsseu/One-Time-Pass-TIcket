@@ -13,6 +13,7 @@ Route::get('/tickets', [TicketController::class, 'index']);
 Route::get('/tickets/next-control-number', [TicketController::class, 'nextControlNumber']);
 Route::post('/tickets', [TicketController::class, 'store']);
 Route::get('/tickets/{ticket}', [TicketController::class, 'show']);
+Route::delete('/tickets/{ticket}',[TicketController::class,'destroy']);
 Route::get('/current-price', [PriceController::class, 'currentPrice']);
 Route::post('/price-history', [PriceController::class, 'store']);
 Route::get('/price-history',[PriceController::class,'index']);

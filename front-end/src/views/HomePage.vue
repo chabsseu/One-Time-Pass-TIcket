@@ -148,6 +148,37 @@ function printTicket(ticket: Ticket){
     }, 100);
 }
 
+// delete fucntion
+async function deleteTicket(id: number) {
+    const result = await Swal.fire({
+        icon: "warning",
+        title: "Are you sure?",
+        text: "This ticket will be deleted.",
+        showCancelButton: true,
+        confirmButtonText: "Yes, delete it",
+        cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+        await api.delete(`/tickets/${id}`);
+        await Swal.fire({
+            icon: "success",
+            title: "Deleted!",
+            text: "Ticket has been deleted."
+        });
+        await loadTickets(currentPage.value);
+    } catch (err) {
+        console.error(err);
+        await Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Failed to delete ticket."
+        });
+    }
+}
+
 // --- Add flow ---
 async function savePrice() {
     try {
@@ -536,12 +567,12 @@ onMounted(() => {
                     <td class="border p-2">₱{{ Number(ticket.amount).toFixed(2) }}</td>
                     <td class="border p-2 text-center"> 
                         <button type="button" @click="printTicket(ticket)" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white text-xl">🖨️</button>
-                        <button type="button" @click="" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white text-xl ml-3">🗑️</button>
+                        <button type="button" @click="deleteTicket(ticket.id)" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white text-xl ml-3">🗑️</button>
                     </td>
                 </tr>
             </tbody>
         </table>
-        
+
         <!-- Pagination -->
              <div class="flex items-center justify-center gap-4 mt-3">
                 <button class="rounded bg-gray-300 px-4 py-2 disabled:opacity-50" :disabled="currentPage === 1" @click="loadTickets(currentPage - 1)">Previous</button>

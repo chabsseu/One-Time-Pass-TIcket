@@ -67,4 +67,11 @@ class TicketController extends Controller
     {
         return $ticket;
     }
+
+    public function destroy(Ticket $ticket)
+    {
+        $ticket->delete(); // soft delete
+
+        return response()->json(['message' => 'Ticket deleted successfully.']);
+    }
 }
