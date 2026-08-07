@@ -50,11 +50,14 @@ const priceHistory = ref<PriceHistoryEntry[]>([]);
 const selectedPriceId = ref<number | null>(null);
 const isEditing = ref(false);
 const ticketToPrint = ref<Ticket | null>(null);
+const search = ref("")
 
 const priceForm = reactive<PriceForm>({
     amount: null,
     effective_date: ""
 });
+
+
 
 // --- Add-price modal ---
 function openModal(){
@@ -255,10 +258,15 @@ function resetForm() {
 
 async function loadTickets() {
     try {
-        const response = await api.get("/tickets");
+        const response = await api.get("/tickets", {
+            params: {
+                search: search.value
+            }
+        });
+
         tickets.value = response.data;
     } catch (err) {
-        console.error('Failed to load tickets:', err);
+        console.error("Failed to load tickets:", err);
     }
 }
 
@@ -282,8 +290,7 @@ onMounted(() => {
     <NavBar />
     <form
         @submit.prevent="handleSubmit"
-        class="mx-auto flex max-w-md flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm mt-3"
-    >
+        class="mx-auto flex max-w-md flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm mt-3">
         <div class="text-center">
             <h2 class="text-lg font-bold text-gray-900">QBITS RESOURCES CORPORATION</h2>
             <p class="text-sm text-gray-500">Temporary Vehicle Entry Control</p>
@@ -333,7 +340,7 @@ onMounted(() => {
             </div>
 
             <div class="flex flex-col gap-1">
-                <label for="driver" class="text-sm font-medium text-gray-700">Driver</label>
+                <label for="driver" class="text-sm font-medium text-gray-700">Driver's name</label>
                 <input
                     id="driver"
                     v-model="form.driver"
@@ -496,14 +503,14 @@ onMounted(() => {
         <button type="button" @click="openModalHistory" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white mb-3 ml-3">
             View Price History
         </button>
-
+        <input v-model="search" @input="loadTickets" type="text" placeholder="Search control no., driver etc..." class="w-80 rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none ml-3"/>
         <table class="min-w-full border border-gray-300">
             <thead class="bg-blue-500">
                 <tr>
                     <th class="border border-black p-2 text-white">Control No.</th>
                     <th class="border border-black p-2 text-white">Date</th>
                     <th class="border border-black p-2 text-white">Plate Number</th>
-                    <th class="border border-black p-2 text-white">Driver</th>
+                    <th class="border border-black p-2 text-white">Driver's Name</th>
                     <th class="border border-black p-2 text-white">Company</th>
                     <th class="border border-black p-2 text-white">Amount</th>
                     <th class="border border-black p-2 text-white">Action</th>
@@ -559,7 +566,7 @@ onMounted(() => {
             </div>
 
             <div class="field-row">
-                <span>DRIVER</span>
+                <span>DRIVER'S NAME</span>
                 <span>:</span>
                 <span>{{ ticketToPrint.driver }}</span>
             </div>

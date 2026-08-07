@@ -9,9 +9,22 @@ use Illuminate\Support\Facades\DB;
 
 class TicketController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return Ticket::latest()->get();
+        $search = $request->search;
+
+        $tickets = Ticket::query();
+
+        if ($search) {
+            $tickets->where('control_no', 'like', "%{$search}%")
+                    ->orWhere('plate_number', 'like', "%{$search}%")
+                    ->orWhere('driver', 'like', "%{$search}%")
+                    ->orWhere('company', 'like', "%{$search}%");
+        }
+
+        return response()->json(
+            $tickets->latest()->get()
+        );
     }
 
     public function nextControlNumber()
