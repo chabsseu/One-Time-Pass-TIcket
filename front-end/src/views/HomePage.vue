@@ -315,9 +315,14 @@ function formatDate(date: string) {
         year: "numeric",
     });
 }
+let searchTimeout: ReturnType<typeof setTimeout>
+
 watch(search, () => {
-    loadTickets(1);
-});
+    clearTimeout(searchTimeout)
+    searchTimeout = setTimeout(() => {
+        loadTickets(1)
+    }, 400) // wait 400ms after the user stops typing
+})
 
 onMounted(() => {
     loadControlNumber();
